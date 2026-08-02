@@ -5,10 +5,13 @@ on:
     branches: [ main, master, fix ]
   workflow_dispatch:
 
+env:
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
     - name: Checkout repository
@@ -24,10 +27,35 @@ jobs:
       with:
         arch: x86
 
-    - name: Configure and Build
+    - name: Install vcpkg (classic mode)
+      run: |
+        git clone --depth=1 https://github.com/microsoft/vcpkg.git ${{ env.VCPKG_ROOT }}
+        cd ${{ env.VCPKG_ROOT }}
+        .\bootstrap-vcpkg.bat
+        echo "VCPKG_ROOT=${{ env.VCPKG_ROOT }}" >> $env:GITHUB_ENV
+
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{ env.VCPKG_ROOT }}/installed
+          ${{ env.VCPKG_ROOT }}/packages
+          ${{ env.VCPKG_ROOT }}/downloads
+        key: ${{ runner.os }}-vcpkg-x86-${{ hashFiles('xmake.lua') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-x86-
+
+    - name: Configure xmake
       run: |
         xmake f -m release -a x86 -y -v
+      env:
+        VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+
+    - name: Build project
+      run: |
         xmake -y -v
+      env:
+        VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
