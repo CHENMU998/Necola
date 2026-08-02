@@ -5,9 +5,6 @@ on:
     branches: [ main, master, fix ]
   workflow_dispatch:
 
-env:
-  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-
 jobs:
   build:
     runs-on: windows-latest
@@ -29,18 +26,20 @@ jobs:
 
     - name: Install vcpkg (classic mode)
       run: |
-        git clone --depth=1 https://github.com/microsoft/vcpkg.git ${{ env.VCPKG_ROOT }}
-        cd ${{ env.VCPKG_ROOT }}
+        $vcpkgDir = "C:\vcpkg"
+        git clone --depth=1 https://github.com/microsoft/vcpkg.git "$vcpkgDir"
+        cd "$vcpkgDir"
         .\bootstrap-vcpkg.bat
-        echo "VCPKG_ROOT=${{ env.VCPKG_ROOT }}" >> $env:GITHUB_ENV
+        echo "VCPKG_ROOT=$vcpkgDir" >> $env:GITHUB_ENV
+        echo "VCPKG_INSTALLATION_ROOT=$vcpkgDir" >> $env:GITHUB_ENV
 
     - name: Cache vcpkg packages
       uses: actions/cache@v4
       with:
         path: |
-          ${{ env.VCPKG_ROOT }}/installed
-          ${{ env.VCPKG_ROOT }}/packages
-          ${{ env.VCPKG_ROOT }}/downloads
+          C:\vcpkg\installed
+          C:\vcpkg\packages
+          C:\vcpkg\downloads
         key: ${{ runner.os }}-vcpkg-x86-${{ hashFiles('xmake.lua') }}
         restore-keys: |
           ${{ runner.os }}-vcpkg-x86-
@@ -49,13 +48,13 @@ jobs:
       run: |
         xmake f -m release -a x86 -y -v
       env:
-        VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+        VCPKG_ROOT: C:\vcpkg
 
     - name: Build project
       run: |
         xmake -y -v
       env:
-        VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
+        VCPKG_ROOT: C:\vcpkg
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
