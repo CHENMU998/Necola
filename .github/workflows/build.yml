@@ -3,69 +3,38 @@ name: Build Necola
 on:
   push:
     branches: [ main, master, fix ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
-
-env:
-  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 30  # 30分钟没跑完就强制结束，避免扣光免费额度
-    
+    timeout-minutes: 30
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
+
     - name: Setup xmake
       uses: xmake-io/github-action-setup-xmake@v1
       with:
         xmake-version: latest
-        
+
     - name: Setup MSVC
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x86
-        
-    - name: Install vcpkg
+
+    - name: Configure and Build
       run: |
-        git clone https://github.com/microsoft/vcpkg.git ${{ env.VCPKG_ROOT }}
-        cd ${{ env.VCPKG_ROOT }}
-        .\bootstrap-vcpkg.bat
-        
-    - name: Cache vcpkg
-      uses: actions/cache@v4
-      with:
-        path: |
-          ${{ env.VCPKG_ROOT }}/installed
-          ${{ env.VCPKG_ROOT }}/packages
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('xmake.lua') }}
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
-          
-    - name: Configure xmake
-      run: xmake f -m release -a x86 -y --vcpkg=${{ env.VCPKG_ROOT }}
-      
-    - name: Build project
-      run: xmake -y -v --all
-      
+        xmake f -m release -a x86 -y -v
+        xmake -y -v
+
     - name: Upload artifacts
-      if: always()  # 即使编译失败也上传日志
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: necola-build-x86
         path: |
           build/windows/x86/release/necola.dll
           build/windows/x86/release/left4dead2_necola.exe
           kpatch.ini
-          
-    - name: Upload logs on failure
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-logs
-        path: |
-          ${{ github.workspace }}/build/.build_cache/
-          ${{ github.workspace }}/build/.deps/
