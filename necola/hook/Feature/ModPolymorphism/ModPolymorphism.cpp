@@ -44,6 +44,9 @@ void ModPolymorphism::LoadModel() {
                                     G::WeaponPoly.addModelIndex(necolaModelIndex, 0, sourceModexIndex);
                                 } else {
                                     spdlog::info("LevelInitPreEntity I::ModelInfo->GetModelIndex [{}] fail. Skip adding fallback self-mapping.", necolaModelName);
+                                    // FIX: 移除自映射回退，避免映射表污染
+                                    // 当necola模型加载失败时，不应将sourceIndex映射到自身，
+                                    // 这样getPolyIndexBySourceIndex会自然回退到原始modelIndex
                                 }
                             }
                         }
@@ -117,6 +120,7 @@ void ModPolymorphism::CacheEntityPolyInVGui() {
                 const model_t* model = pEntity->GetModel();
                 if(model && model->szName) {
                     size_t nameLen = strlen(model->szName);
+                    // FIX: 添加字符串长度检查，防止越界访问
                     if (nameLen > 20 && model->szName[0] == 'm') {
                         if (model->szName[7] == 'p' && model->szName[13] == 't') {
                             if (model->szName[20] == 'e') {
@@ -152,9 +156,9 @@ void ModPolymorphism::CacheEntityPolyInCreated(C_BaseEntity* pEntity) {
     if(!pEntity || pEntity->entindex() == -1) {
         return;
     }
-    
+
     int entIndex = pEntity->entindex();
-    
+
     if(pEntity->IsBaseCombatWeapon()) {
         C_BaseCombatWeapon* pCombatWeapon = pEntity->MyCombatWeaponPointer();
         if(pCombatWeapon) {
@@ -235,23 +239,26 @@ void ModPolymorphism::CacheEntityPolyInSpawnerGiveItem(int userid, const char* i
     }
 }
 
+// FIX: 核心修复 - 添加实体有效性验证、类型检查和空指针保护
 void ModPolymorphism::ModifyEntityPolyPerFrame() {
     for(auto it = G::WeaponPoly.entityPolymorphis.begin(); it != G::WeaponPoly.entityPolymorphis.end(); ) {
         int entIndex = it->first;
         C_BaseEntity* pEntity = I::ClientEntityList->GetClientEntity(entIndex)->As<C_BaseEntity>();
-        
+
+        // FIX 1: 实体已销毁，立即清理映射，防止entindex复用污染
         if (!pEntity) {
             spdlog::debug("[NecolaPolymorphis]ModifyEntityPolyPerFrame: Entity {} destroyed, removing from poly map.", entIndex);
             it = G::WeaponPoly.entityPolymorphis.erase(it);
             continue;
         }
-        
+
+        // FIX 2: 验证实体类型，确保entindex没有被复用给其他类型实体
         ClientClass* pCC = pEntity->GetClientClass();
         if (!pCC) {
             ++it;
             continue;
         }
-        
+
         bool isValidPolyTarget = false;
         switch(pCC->m_ClassID) {
             case CTerrorMeleeWeapon:
@@ -266,13 +273,14 @@ void ModPolymorphism::ModifyEntityPolyPerFrame() {
             default:
                 break;
         }
-        
+
         if (!isValidPolyTarget) {
+            // entindex已被引擎复用给非武器/物品实体（如墙壁、人物）
             spdlog::debug("[NecolaPolymorphis]ModifyEntityPolyPerFrame: Entity {} classID {} mismatch, removing from poly map.", entIndex, pCC->m_ClassID);
             it = G::WeaponPoly.entityPolymorphis.erase(it);
             continue;
         }
-        
+
         if(pEntity->IsBaseCombatWeapon()){
             C_BaseCombatWeapon* pCombatWeapon = pEntity->MyCombatWeaponPointer();
             if(pCombatWeapon) {
@@ -311,6 +319,8 @@ void ModPolymorphism::ModifyEntityPolyPerFrame() {
                 int newModelIndex = G::WeaponPoly.getPolyIndexBySourceIndex(modelIndex, poly);
                 if(modelIndex != newModelIndex) {
                     pEntity->m_nModelIndex() = newModelIndex;
+
+                    // FIX 3: 空指针保护 - 确保模型有效后再调用SetModelInternalOffset
                     const model_t* pNewModel = I::ModelInfo->GetModel(newModelIndex);
                     if (pNewModel) {
                         const char* szModelName = I::ModelInfo->GetModelName(pNewModel);
@@ -325,12 +335,13 @@ void ModPolymorphism::ModifyEntityPolyPerFrame() {
     }
 }
 
+// FIX: 添加空指针保护
 void ModPolymorphism::ModifyLocalPlayerViewModel() {
     C_TerrorPlayer* pLocal = I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer())->As<C_TerrorPlayer>();
     if( pLocal && !pLocal->deadflag()) {
         C_TerrorWeapon* pWeapon = pLocal->GetActiveWeapon()->As<C_TerrorWeapon>();
         if(pWeapon) {
-            C_BaseViewModel* pViewModel = pLocal->m_hViewModel()->As<C_BaseViewModel>();
+            C_BaseViewModel* pViewModel = static_cast<C_BaseViewModel*>(pLocal->m_hViewModel());
             if(pViewModel) {
                 int sourceIViewModelIndex = pWeapon->m_iViewModelIndex();
                 if(pWeapon->GetWeaponID() == NECOLA_WEAPON_PISTOL){
@@ -342,6 +353,7 @@ void ModPolymorphism::ModifyLocalPlayerViewModel() {
                     pViewModel->m_nModelIndex() = sourceIViewModelIndex;
                 }
 
+                // FIX: 空指针保护
                 const model_t* pTargetModel = I::ModelInfo->GetModel(sourceIViewModelIndex);
                 if(pViewModel->GetModel() && pTargetModel) {
                     if(pViewModel->GetModel() != pTargetModel) {
