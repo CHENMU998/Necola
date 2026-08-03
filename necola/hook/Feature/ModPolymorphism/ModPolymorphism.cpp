@@ -339,9 +339,9 @@ void ModPolymorphism::ModifyEntityPolyPerFrame() {
 void ModPolymorphism::ModifyLocalPlayerViewModel() {
     C_TerrorPlayer* pLocal = I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer())->As<C_TerrorPlayer>();
     if( pLocal && !pLocal->deadflag()) {
-        C_TerrorWeapon* pWeapon = pLocal->GetActiveWeapon()->As<C_TerrorWeapon>();
+        C_TerrorWeapon* pWeapon = static_cast<C_TerrorWeapon*>(pLocal->GetActiveWeapon().Get());
         if(pWeapon) {
-            C_BaseViewModel* pViewModel = static_cast<C_BaseViewModel*>(pLocal->m_hViewModel());
+            C_BaseViewModel* pViewModel = static_cast<C_BaseViewModel*>(pLocal->m_hViewModel().Get());
             if(pViewModel) {
                 int sourceIViewModelIndex = pWeapon->m_iViewModelIndex();
                 if(pWeapon->GetWeaponID() == NECOLA_WEAPON_PISTOL){
