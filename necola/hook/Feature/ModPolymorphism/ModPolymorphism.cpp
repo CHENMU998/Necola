@@ -62,7 +62,7 @@ void ModPolymorphism::CacheEntityPolyInVGui() {
         return;
     }
     for (int n = 1; n < (I::ClientEntityList->GetMaxEntities() + 1); n++) {
-        C_BaseEntity* pEntity = I::ClientEntityList->GetClientEntity(n)->As();
+        C_BaseEntity* pEntity = reinterpret_cast<C_BaseEntity*>(I::ClientEntityList->GetClientEntity(n));
         if (!pEntity || pEntity->IsDormant()) {
             continue;
         }
@@ -101,7 +101,7 @@ void ModPolymorphism::CacheEntityPolyInVGui() {
             }
             case CWeaponSpawn:
             {
-                C_WeaponSpawn* weaponSpawnEntity = pEntity->As<C_WeaponSpawn>();
+                C_WeaponSpawn* weaponSpawnEntity = reinterpret_cast<C_WeaponSpawn*>(pEntity);
                 int weaponId = weaponSpawnEntity->GetWeaponID();
                 if(weaponId == NECOLA_WEAPON_MELEE) {
                     const model_t* model = pEntity->GetModel();
@@ -220,7 +220,7 @@ void ModPolymorphism::CacheEntityPolyInSpawnerGiveItem(int userid, const char* i
         int weaponId = G::Util.getWeaponIDByWeaponName(itemName);
         if(weaponId != -1) {
             if(strcmp(itemName, "weapon_melee") == 0) {
-                C_BaseEntity* spawnerEntity = I::ClientEntityList->GetClientEntity(spawner)->As<C_BaseEntity>();
+                C_BaseEntity* spawnerEntity = static_cast<C_BaseEntity*>(I::ClientEntityList->GetClientEntity(spawner));
                 if(spawnerEntity) {
                     int modelIndex = spawnerEntity->m_nModelIndex();
                     const char* modelName = I::ModelInfo->GetModelName(I::ModelInfo->GetModel(modelIndex));
@@ -243,7 +243,7 @@ void ModPolymorphism::CacheEntityPolyInSpawnerGiveItem(int userid, const char* i
 void ModPolymorphism::ModifyEntityPolyPerFrame() {
     for(auto it = G::WeaponPoly.entityPolymorphis.begin(); it != G::WeaponPoly.entityPolymorphis.end(); ) {
         int entIndex = it->first;
-        C_BaseEntity* pEntity = I::ClientEntityList->GetClientEntity(entIndex)->As<C_BaseEntity>();
+        C_BaseEntity* pEntity = static_cast<C_BaseEntity*>(I::ClientEntityList->GetClientEntity(entIndex));
 
         // FIX 1: 实体已销毁，立即清理映射，防止entindex复用污染
         if (!pEntity) {
@@ -337,11 +337,11 @@ void ModPolymorphism::ModifyEntityPolyPerFrame() {
 
 // FIX: 添加空指针保护
 void ModPolymorphism::ModifyLocalPlayerViewModel() {
-    C_TerrorPlayer* pLocal = I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer())->As<C_TerrorPlayer>();
+    C_TerrorPlayer* pLocal = reinterpret_cast<C_TerrorPlayer*>(I::ClientEntityList->GetClientEntity(I::EngineClient->GetLocalPlayer()));
     if( pLocal && !pLocal->deadflag()) {
-        C_TerrorWeapon* pWeapon = static_cast<C_TerrorWeapon*>(pLocal->GetActiveWeapon().Get());
+        C_TerrorWeapon* pWeapon = reinterpret_cast<C_TerrorWeapon*>(pLocal->GetActiveWeapon().Get());
         if(pWeapon) {
-            C_BaseViewModel* pViewModel = static_cast<C_BaseViewModel*>(pLocal->m_hViewModel().Get());
+            C_BaseViewModel* pViewModel = reinterpret_cast<C_BaseViewModel*>(pLocal->m_hViewModel().Get());
             if(pViewModel) {
                 int sourceIViewModelIndex = pWeapon->m_iViewModelIndex();
                 if(pWeapon->GetWeaponID() == NECOLA_WEAPON_PISTOL){
