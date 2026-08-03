@@ -85,7 +85,7 @@ void ModPolymorphism::CacheEntityPolyInVGui() {
 
                         C_BaseCombatWeapon* pCombatWeapon = pEntity->MyCombatWeaponPointer();
                         if(pCombatWeapon) {
-                            C_BaseCombatCharacter* weaponOwner = pCombatWeapon->m_hOwner()->As();
+                            C_BaseCombatCharacter* weaponOwner = static_cast<C_BaseCombatCharacter*>(pCombatWeapon->m_hOwner().Get());
                             if(weaponOwner) {
                                 int playerEntityId = weaponOwner->entindex();
                                 if(G::WeaponPoly.hasPrecache(playerEntityId, weaponId)) {
@@ -288,7 +288,7 @@ void ModPolymorphism::ModifyEntityPolyPerFrame() {
                 if(pCombatWeapon->m_hOwner()) {
                     int currentWeaponId = G::Util.entityClassID2WeaponID(pCC->m_ClassID);
                     if(currentWeaponId != NECOLA_WEAPON_MELEE) {
-                        C_BaseCombatCharacter* weaponOwner = pCombatWeapon->m_hOwner()->As<C_BaseCombatCharacter>();
+                        C_BaseCombatCharacter* weaponOwner = static_cast<C_BaseCombatCharacter*>(pCombatWeapon->m_hOwner().Get());
                         if(weaponOwner) {
                             int playerEntityId = weaponOwner->entindex();
                             if(G::WeaponPoly.hasPrecache(playerEntityId, currentWeaponId)) {
